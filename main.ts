@@ -1,3 +1,6 @@
+info.onCountdownEnd(function () {
+    game.gameOver(true)
+})
 sprites.onOverlap(SpriteKind.Player, SpriteKind.Enemy, function (sprite, otherSprite) {
     info.changeLifeBy(-1)
     Pokeball2.setPosition(randint(-100, -50), randint(0, 120))
@@ -166,7 +169,7 @@ let mySprite = sprites.create(img`
     `, SpriteKind.Player)
 controller.moveSprite(mySprite)
 game.setGameOverEffect(true, effects.confetti)
-info.startCountdown(20)
+info.startCountdown(40)
 Pokeball3 = sprites.create(img`
     . . . . . . . . . . . . . . . . 
     . . . . . . . . . . . . . . . . 
@@ -224,9 +227,9 @@ Pokeball1 = sprites.create(img`
 Pokeball2.setPosition(randint(-100, -50), randint(0, 120))
 Pokeball1.setPosition(randint(-100, -50), randint(0, 120))
 Pokeball3.setPosition(randint(-100, -50), randint(0, 120))
-Pokeball3.setVelocity(150, 0)
-Pokeball2.setVelocity(100, 0)
-Pokeball1.setVelocity(50, 0)
+Pokeball3.setVelocity(randint(80, 10), 0)
+Pokeball2.setVelocity(randint(60, 70), 0)
+Pokeball1.setVelocity(randint(40, 50), 0)
 forever(function () {
     mySprite.setStayInScreen(true)
     if (Pokeball1.x > 150) {
