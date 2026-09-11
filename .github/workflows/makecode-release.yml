@@ -119,17 +119,17 @@ jobs:
         with:
           path: _site
     
-    deploy-pages:
-      name: Deploy GitHub Pages
-      needs: build
+  deploy-pages:
+    name: Deploy GitHub Pages
+    needs: build
     
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     
-      environment:
-        name: github-pages
-        url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     
-      steps:
-        - name: Deploy to GitHub Pages
-          id: deployment
-          uses: actions/deploy-pages@v4
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
