@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Importante: compilamos exactamente el código del tag de la Release
+      # Compilamos exactamente el código del tag asociado a la Release
       - name: Checkout release tag
         uses: actions/checkout@v5
         with:
@@ -35,56 +35,53 @@ jobs:
           npm install -g pxt
           pxt target arcade
 
-      # ------------------------------------------------------------
       # Build estándar
-      # ------------------------------------------------------------
-
       - name: Build MakeCode project
         run: |
           pxt clean
           pxt install
           pxt build --cloud
 
-      # ------------------------------------------------------------
-      # Hardware específico
-      # ------------------------------------------------------------
-
+      # Build SAMD51
       - name: Build D51
-        continue-on-error: true
         run: |
           pxt clean
           pxt install --hw samd51
           pxt build --hw samd51 --cloud
           cp built/binary.uf2 binary-d51.uf2
 
+      # Build STM32F401
       - name: Build F4
-        continue-on-error: true
         run: |
           pxt clean
           pxt install --hw stm32f401
           pxt build --hw stm32f401 --cloud
           cp built/binary.uf2 binary-f4.uf2
 
+      # Build Raspberry Pi Pico
       - name: Build P0
-        continue-on-error: true
         run: |
           pxt clean
           pxt install --hw rpi
           pxt build --hw rpi --cloud
           cp built/binary.uf2 binary-p0.uf2
-    
-      # ------------------------------------------------------------
-      # Bundle universal
-      # ------------------------------------------------------------
-    
+
+      # Generar UF2 universal
       - name: Bundle all UF2 files
         run: |
           cat binary-*.uf2 > built/arcade.uf2
-    
-      # ------------------------------------------------------------
-      # GitHub Release
-      # ------------------------------------------------------------
-    
+
+      # Comprobar que todos los binarios existen antes de publicar
+      - name: Verify build artifacts
+        run: |
+          test -f built/arcade.uf2
+          test -f binary-d51.uf2
+          test -f binary-f4.uf2
+          test -f binary-p0.uf2
+
+          ls -lh built/arcade.uf2 binary-*.uf2
+
+      # Subir binarios a la GitHub Release
       - name: Upload Release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,39 +93,34 @@ jobs:
             binary-f4.uf2 \
             binary-p0.uf2 \
             --clobber
-    
-      # ------------------------------------------------------------
-      # GitHub Pages
-      # ------------------------------------------------------------
-    
+
+      # Preparar el contenido que se publicará en GitHub Pages
       - name: Prepare GitHub Pages
         run: |
           mkdir -p _site
-    
-          # Copiamos el contenido del proyecto correspondiente
-          # exactamente al tag de la Release.
+
           rsync -av \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
             --exclude='built' \
             ./ _site/
-    
+
+      # Subir artefacto para GitHub Pages
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
-    
+
   deploy-pages:
     name: Deploy GitHub Pages
     needs: build
-    
     runs-on: ubuntu-latest
-    
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
