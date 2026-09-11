@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Compilamos exactamente el código del tag asociado a la Release
+      # Compilar exactamente el commit asociado al tag de la Release
       - name: Checkout release tag
         uses: actions/checkout@v5
         with:
@@ -30,23 +30,42 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install MakeCode
+      # ============================================================
+      # BUILD PARA GITHUB PAGES
+      # ============================================================
+
+      - name: Install MakeCode CLI
+        run: npm install -g makecode
+
+      - name: Build JavaScript for GitHub Pages
+        run: |
+          makecode --java-script -u
+
+          echo "Generated files:"
+          find built -maxdepth 3 -type f -print
+
+          test -f built/binary.js
+
+          cp built/binary.js assets/js/binary.js
+
+          echo "GitHub Pages binary:"
+          ls -lh assets/js/binary.js
+
+      # ============================================================
+      # BUILD DE UF2 PARA LA RELEASE
+      # ============================================================
+
+      - name: Install PXT
         run: |
           npm install -g pxt
           pxt target arcade
 
-      # Build estándar
-      - name: Build MakeCode project
+      - name: Build standard project
         run: |
           pxt clean
           pxt install
           pxt build --cloud
 
-      - name: Update GitHub Pages binary
-        run: |
-          cp built/debug/binary.js assets/js/binary.js          
-
-      # Build SAMD51
       - name: Build D51
         run: |
           pxt clean
@@ -54,7 +73,6 @@ jobs:
           pxt build --hw samd51 --cloud
           cp built/binary.uf2 binary-d51.uf2
 
-      # Build STM32F401
       - name: Build F4
         run: |
           pxt clean
@@ -62,7 +80,6 @@ jobs:
           pxt build --hw stm32f401 --cloud
           cp built/binary.uf2 binary-f4.uf2
 
-      # Build Raspberry Pi Pico
       - name: Build P0
         run: |
           pxt clean
@@ -70,35 +87,43 @@ jobs:
           pxt build --hw rpi --cloud
           cp built/binary.uf2 binary-p0.uf2
 
-      # Generar UF2 universal
-      - name: Bundle all UF2 files
+      - name: Bundle universal UF2
         run: |
-          cat binary-*.uf2 > built/arcade.uf2
-
-      # Comprobar que todos los binarios existen antes de publicar
-      - name: Verify build artifacts
-        run: |
-          test -f built/arcade.uf2
           test -f binary-d51.uf2
           test -f binary-f4.uf2
           test -f binary-p0.uf2
 
-          ls -lh built/arcade.uf2 binary-*.uf2
+          mkdir -p release
 
-      # Subir binarios a la GitHub Release
+          cat \
+            binary-d51.uf2 \
+            binary-f4.uf2 \
+            binary-p0.uf2 \
+            > release/arcade.uf2
+
+      # ============================================================
+      # GITHUB RELEASE
+      # ============================================================
+
       - name: Upload Release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
           gh release upload "$TAG_NAME" \
-            built/arcade.uf2 \
+            release/arcade.uf2 \
             binary-d51.uf2 \
             binary-f4.uf2 \
             binary-p0.uf2 \
             --clobber
 
-      # Preparar el contenido que se publicará en GitHub Pages
+      # ============================================================
+      # GITHUB PAGES
+      # ============================================================
+
+      # IMPORTANTE:
+      # assets/js/binary.js ya contiene el JS generado arriba.
+      # Ahora copiamos el repositorio completo para publicarlo.
       - name: Prepare GitHub Pages
         run: |
           mkdir -p _site
@@ -108,9 +133,15 @@ jobs:
             --exclude='.github' \
             --exclude='node_modules' \
             --exclude='built' \
+            --exclude='release' \
+            --exclude='binary-d51.uf2' \
+            --exclude='binary-f4.uf2' \
+            --exclude='binary-p0.uf2' \
             ./ _site/
 
-      # Subir artefacto para GitHub Pages
+          echo "Pages binary:"
+          ls -lh _site/assets/js/binary.js
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
