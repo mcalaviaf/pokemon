@@ -42,6 +42,10 @@ jobs:
           pxt install
           pxt build --cloud
 
+      - name: Update GitHub Pages binary
+        run: |
+          cp built/binary.js assets/js/binary.js          
+
       # Build SAMD51
       - name: Build D51
         run: |
