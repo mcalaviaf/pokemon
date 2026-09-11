@@ -1,17 +1,17 @@
 name: MakeCode Arcade Release
 
 on:
-release:
-types: [created]
+  release:
+    types: [created]
 
 permissions:
-contents: write
-pages: write
-id-token: write
+  contents: write
+  pages: write
+  id-token: write
 
 concurrency:
-group: github-pages
-cancel-in-progress: false
+  group: github-pages
+  cancel-in-progress: false
 
 jobs:
 build:
