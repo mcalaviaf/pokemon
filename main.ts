@@ -169,7 +169,7 @@ let mySprite = sprites.create(img`
     `, SpriteKind.Player)
 controller.moveSprite(mySprite)
 game.setGameOverEffect(true, effects.confetti)
-info.startCountdown(40)
+info.startCountdown(60)
 Pokeball3 = sprites.create(img`
     . . . . . . . . . . . . . . . . 
     . . . . . . . . . . . . . . . . 
