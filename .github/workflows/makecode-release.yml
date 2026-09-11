@@ -44,7 +44,7 @@ jobs:
 
       - name: Update GitHub Pages binary
         run: |
-          cp built/binary.js assets/js/binary.js          
+          cp built/debug/binary.js assets/js/binary.js          
 
       # Build SAMD51
       - name: Build D51
