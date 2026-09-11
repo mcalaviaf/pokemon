@@ -1,135 +1,127 @@
 name: MakeCode Arcade Release
 
 on:
-release:
-types: [created]
+  release:
+    types: [created]
 
 permissions:
-contents: write
-pages: write
-id-token: write
+  contents: write
+  pages: write
+  id-token: write
 
 concurrency:
-group: github-pages
-cancel-in-progress: false
+  group: github-pages
+  cancel-in-progress: false
 
 jobs:
-build:
-name: Build MakeCode Arcade
-runs-on: ubuntu-latest
+  build:
+    name: Build MakeCode Arcade
+    runs-on: ubuntu-latest
 
-steps:
-  # Importante: compilamos exactamente el código del tag de la Release
-  - name: Checkout release tag
-    uses: actions/checkout@v5
-    with:
-      ref: ${{ github.event.release.tag_name }}
+    steps:
+      # Compilamos exactamente el código del tag asociado a la Release
+      - name: Checkout release tag
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
-  - name: Setup Node.js
-    uses: actions/setup-node@v6
-    with:
-      node-version: 22
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
 
-  - name: Install MakeCode
-    run: |
-      npm install -g pxt
-      pxt target arcade
+      - name: Install MakeCode
+        run: |
+          npm install -g pxt
+          pxt target arcade
 
-  # ------------------------------------------------------------
-  # Build estándar
-  # ------------------------------------------------------------
+      # Build estándar
+      - name: Build MakeCode project
+        run: |
+          pxt clean
+          pxt install
+          pxt build --cloud
 
-  - name: Build MakeCode project
-    run: |
-      pxt clean
-      pxt install
-      pxt build --cloud
+      # Build SAMD51
+      - name: Build D51
+        run: |
+          pxt clean
+          pxt install --hw samd51
+          pxt build --hw samd51 --cloud
+          cp built/binary.uf2 binary-d51.uf2
 
-  # ------------------------------------------------------------
-  # Hardware específico
-  # ------------------------------------------------------------
+      # Build STM32F401
+      - name: Build F4
+        run: |
+          pxt clean
+          pxt install --hw stm32f401
+          pxt build --hw stm32f401 --cloud
+          cp built/binary.uf2 binary-f4.uf2
 
-  - name: Build D51
-    continue-on-error: true
-    run: |
-      pxt clean
-      pxt install --hw samd51
-      pxt build --hw samd51 --cloud
-      cp built/binary.uf2 binary-d51.uf2
+      # Build Raspberry Pi Pico
+      - name: Build P0
+        run: |
+          pxt clean
+          pxt install --hw rpi
+          pxt build --hw rpi --cloud
+          cp built/binary.uf2 binary-p0.uf2
 
-  - name: Build F4
-    continue-on-error: true
-    run: |
-      pxt clean
-      pxt install --hw stm32f401
-      pxt build --hw stm32f401 --cloud
-      cp built/binary.uf2 binary-f4.uf2
+      # Generar UF2 universal
+      - name: Bundle all UF2 files
+        run: |
+          cat binary-*.uf2 > built/arcade.uf2
 
-  - name: Build P0
-    continue-on-error: true
-    run: |
-      pxt clean
-      pxt install --hw rpi
-      pxt build --hw rpi --cloud
-      cp built/binary.uf2 binary-p0.uf2
+      # Comprobar que todos los binarios existen antes de publicar
+      - name: Verify build artifacts
+        run: |
+          test -f built/arcade.uf2
+          test -f binary-d51.uf2
+          test -f binary-f4.uf2
+          test -f binary-p0.uf2
 
-  # ------------------------------------------------------------
-  # Bundle universal
-  # ------------------------------------------------------------
+          ls -lh built/arcade.uf2 binary-*.uf2
 
-  - name: Bundle all UF2 files
-    run: |
-      cat binary-*.uf2 > built/arcade.uf2
+      # Subir binarios a la GitHub Release
+      - name: Upload Release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG_NAME" \
+            built/arcade.uf2 \
+            binary-d51.uf2 \
+            binary-f4.uf2 \
+            binary-p0.uf2 \
+            --clobber
 
-  # ------------------------------------------------------------
-  # GitHub Release
-  # ------------------------------------------------------------
+      # Preparar el contenido que se publicará en GitHub Pages
+      - name: Prepare GitHub Pages
+        run: |
+          mkdir -p _site
 
-  - name: Upload Release assets
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG_NAME: ${{ github.event.release.tag_name }}
-    run: |
-      gh release upload "$TAG_NAME" \
-        built/arcade.uf2 \
-        binary-d51.uf2 \
-        binary-f4.uf2 \
-        binary-p0.uf2 \
-        --clobber
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='built' \
+            ./ _site/
 
-  # ------------------------------------------------------------
-  # GitHub Pages
-  # ------------------------------------------------------------
+      # Subir artefacto para GitHub Pages
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
 
-  - name: Prepare GitHub Pages
-    run: |
-      mkdir -p _site
+  deploy-pages:
+    name: Deploy GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
 
-      # Copiamos el contenido del proyecto correspondiente
-      # exactamente al tag de la Release.
-      rsync -av \
-        --exclude='.git' \
-        --exclude='.github' \
-        --exclude='node_modules' \
-        --exclude='built' \
-        ./ _site/
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
-  - name: Upload GitHub Pages artifact
-    uses: actions/upload-pages-artifact@v3
-    with:
-      path: _site
-
-deploy-pages:
-name: Deploy GitHub Pages
-needs: build
-runs-on: ubuntu-latest
-
-environment:
-  name: github-pages
-  url: ${{ steps.deployment.outputs.page_url }}
-
-steps:
-  - name: Deploy to GitHub Pages
-    id: deployment
-    uses: actions/deploy-pages@v4
-xº
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
